@@ -1,0 +1,7 @@
+const STATUS_CODE = {
+  FORBIDDEN: 403,
+  UNAUTHORIZED: 401,
+  NOT_ACCEPTABLE: 406,
+};
+
+module.exports = STATUS_CODE;
