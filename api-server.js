@@ -13,7 +13,7 @@ const { cache } = require("./utils/rxjs");
 const { authenticateToken } = require("./utils/jwt");
 const { Subject, using } = require("rxjs");
 const { catchError, tap, map, mergeMap } = require("rxjs/operators");
-const { webSocketConnection, clientMessage } = require("./utils/websocket");
+const { listenConnection, listenClientMessage } = require("./utils/websocket");
 
 app.use(express.json());
 app.use(
@@ -116,7 +116,7 @@ app.get("/ws-config", authenticateToken, (req, res) => {
 const ws = new WebSocketServer(configWebSocket);
 const serverMessage = new Subject();
 
-webSocketConnection(ws)
+listenConnection(ws)
   .pipe(
     mergeMap(({ client }) => {
       return using(
@@ -124,7 +124,7 @@ webSocketConnection(ws)
           serverMessage.subscribe((msg) => {
             client.send(msg);
           }),
-        () => clientMessage(client)
+        () => listenClientMessage(client)
       );
     })
   )

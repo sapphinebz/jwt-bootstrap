@@ -1,4 +1,4 @@
-const webSocketConnection = require("./web-socket-connection");
-const clientMessage = require("./client-message");
+const listenConnection = require("./listen-connection");
+const listenClientMessage = require("./listen-client-message");
 
-module.exports = { webSocketConnection, clientMessage };
+module.exports = { listenConnection, listenClientMessage };

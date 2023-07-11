@@ -1,6 +1,6 @@
 const { Observable } = require("rxjs");
 
-function clientMessage(client) {
+function listenClientMessage(client) {
   return new Observable((subscriber) => {
     client.addListener("message", (message) => {
       subscriber.next(message.toString());
@@ -17,4 +17,4 @@ function clientMessage(client) {
   });
 }
 
-module.exports = clientMessage;
+module.exports = listenClientMessage;

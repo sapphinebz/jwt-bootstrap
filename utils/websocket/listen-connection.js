@@ -1,6 +1,6 @@
 const { Observable } = require("rxjs");
 
-function webSocketConnection(ws) {
+function listenConnection(ws) {
   return new Observable((subscriber) => {
     ws.addListener("connection", (client, req) => {
       subscriber.next({ client, req });
@@ -13,4 +13,4 @@ function webSocketConnection(ws) {
   });
 }
 
-module.exports = webSocketConnection;
+module.exports = listenConnection;
