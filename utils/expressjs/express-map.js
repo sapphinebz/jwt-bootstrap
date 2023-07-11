@@ -1,5 +1,6 @@
 const { Subject } = require("rxjs");
-const { mergeAll } = require("rxjs/operators");
+const { mergeAll, takeUntil } = require("rxjs/operators");
+const { fromListener } = require("../rxjs");
 
 function expressMap(project) {
   const onReq = new Subject();
@@ -7,7 +8,8 @@ function expressMap(project) {
   onReq.pipe(mergeAll()).subscribe();
 
   return (req, res) => {
-    onReq.next(project(req, res));
+    const connectionClose = fromListener(res, "close");
+    onReq.next(project(req, res).pipe(takeUntil(connectionClose)));
   };
 }
 
