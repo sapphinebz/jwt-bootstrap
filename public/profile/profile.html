@@ -72,9 +72,11 @@
       </template>
     </main>
     <script>
-      const { timer, fromEvent } = rxjs;
-      const { catchError, exhaustMap, switchMap, tap } = rxjs.operators;
+      const { timer, fromEvent, EMPTY, using, Subject } = rxjs;
+      const { catchError, exhaustMap, switchMap, tap, map } = rxjs.operators;
       const { fromFetch } = rxjs.fetch;
+      const { webSocket } = rxjs.webSocket;
+
       const rowTemplate = document.querySelector("#row-template");
       const mainEl = document.querySelector("main");
 
@@ -96,7 +98,7 @@
           switchMap(() => {
             return httpAuthDelete("/logout").pipe(
               tap(() => {
-                window.location.href = "/";
+                gotoLogin();
               })
             );
           })
@@ -105,24 +107,24 @@
 
       function writeGoldTable(list) {
         return ` <h3>
-            ราคาทองวันนี้
-                  </h3>
-                  <table>
-                     <tbody>
-                       ${list
-                         .map((tr) => {
-                           return `<tr>
-                             ${tr
-                               .map((td) => {
-                                 return `<td>${td}</td>`;
+                  ราคาทองวันนี้
+                        </h3>
+                        <table>
+                           <tbody>
+                             ${list
+                               .map((tr) => {
+                                 return `<tr>
+                                   ${tr
+                                     .map((td) => {
+                                       return `<td>${td}</td>`;
+                                     })
+                                     .join("")}
+                                  </tr>`;
                                })
                                .join("")}
-                            </tr>`;
-                         })
-                         .join("")}
-                      </tbody>
-ฃ       </table>
-      `;
+                            </tbody>
+      ฃ       </table>
+            `;
       }
 
       httpJsonGet("/posts").subscribe((list) => {
@@ -141,14 +143,14 @@
         let content = "";
         if (user) {
           content = `
-         <div>user: ${user.username}</div>
-         <div>title: ${user.title}</div>
-        `;
+               <div>user: ${user.email}</div>
+
+              `;
         } else {
           content = `
-         <div>user: none</div>
-         <div>title: none</div>
-        `;
+               <div>user: none</div>
+
+              `;
         }
         createRow({
           header: "Profile",
@@ -156,6 +158,41 @@
           content: content,
         });
       });
+
+      const sendWebSocket = new Subject();
+
+      httpJsonGet("/ws-config")
+        .pipe(
+          switchMap((config) => {
+            const subject = webSocket({
+              url: `ws://${window.location.hostname}:${config.port}${config.path}`,
+              deserializer: (msgToClient) => {
+                return JSON.parse(msgToClient);
+              },
+              serializer: (msgToServer) => {
+                return JSON.stringify(msgToServer);
+              },
+              openObserver: {
+                next: () => {
+                  console.log("websocket open");
+                },
+              },
+              closeObserver: {
+                next: () => {
+                  console.log("websocket close");
+                },
+              },
+            });
+            return using(
+              () =>
+                sendWebSocket.subscribe({ next: subject.next.bind(subject) }),
+              () => subject
+            );
+          })
+        )
+        .subscribe((msgToClient) => {
+          console.log(msgToClient);
+        });
 
       function createRow(options) {
         const fragment = document.importNode(rowTemplate, true);
@@ -200,6 +237,12 @@
         );
       }
 
+      function gotoLogin() {
+        window.location.href = "/";
+      }
+
+      const UNAUTHORIZED = 401;
+
       function httpJsonGet(url) {
         return fromFetch(url, {
           method: "GET",
@@ -207,7 +250,9 @@
             "Content-Type": "application/json",
           },
           selector: (res) => {
-            if (res.ok) {
+            if (res.status === UNAUTHORIZED) {
+              gotoLogin();
+            } else if (res.ok) {
               return res.json();
             }
             return res.text();

@@ -1,18 +1,21 @@
-const { EMPTY, defer, identity } = require("rxjs");
-const { catchError, tap } = require("rxjs/operators");
+const { EMPTY } = require("rxjs");
+const { catchError } = require("rxjs/operators");
 
 const cookieparser = require("cookie-parser");
 require("dotenv").config();
 const express = require("express");
-const { axiosGet, axiosPost, axiosDelete } = require("./utils/axios");
+const {
+  axiosGet,
+  axiosPost,
+  axiosDelete,
+  axiosGetWithAuth,
+} = require("./utils/axios");
 const timeout = require("connect-timeout");
 const { expressMap, provideBootstrap } = require("./utils/expressjs");
 const {
   getRefreshTokenCookie,
   setRefreshTokenCookie,
   setAccessTokenCookie,
-  getAccessTokenCookie,
-  autoRefreshToken,
 } = require("./utils/jwt");
 
 const { noAuthRedirectTo } = require("./utils/jwt");
@@ -20,7 +23,7 @@ const STATUS_CODE = require("./utils/status-code");
 
 const app = express();
 
-app.use(timeout("3s"));
+app.use(timeout("10s"));
 app.use(express.json());
 app.use(cookieparser());
 
@@ -43,11 +46,11 @@ app.get(`/login.css`, (req, res) => {
 app.get(
   "/posts",
   expressMap((req, res) => {
-    return httpGetWithAuth(`http://localhost:${apiPort}/posts`, req, res, {
+    return axiosGetWithAuth(`http://localhost:${apiPort}/posts`, req, res, {
       next: (jsonResponse) => {
         res.json(jsonResponse);
       },
-      error: () => {
+      error: (err) => {
         res.json([]);
       },
     });
@@ -57,11 +60,25 @@ app.get(
 app.get(
   "/gold",
   expressMap((req, res) => {
-    return httpGetWithAuth(`http://localhost:${apiPort}/gold`, req, res, {
+    return axiosGetWithAuth(`http://localhost:${apiPort}/gold`, req, res, {
       next: (jsonResponse) => {
         res.json(jsonResponse);
       },
-      error: () => {
+      error: (err) => {
+        res.json([]);
+      },
+    });
+  })
+);
+
+app.get(
+  "/ws-config",
+  expressMap((req, res) => {
+    return axiosGetWithAuth(`http://localhost:${apiPort}/ws-config`, req, res, {
+      next: (jsonResponse) => {
+        res.json(jsonResponse);
+      },
+      error: (err) => {
         res.json([]);
       },
     });
@@ -71,7 +88,7 @@ app.get(
 app.get(
   "/userInfo",
   expressMap((req, res) => {
-    return httpGetWithAuth(`http://localhost:${apiPort}/userInfo`, req, res, {
+    return axiosGetWithAuth(`http://localhost:${apiPort}/userInfo`, req, res, {
       next: (jsonResponse) => {
         res.json(jsonResponse);
       },
@@ -86,9 +103,10 @@ app.post(
   "/login",
   expressMap((req, res) => {
     return axiosPost(
-      `http://localhost:${authPort}/login-server`,
+      `http://localhost:${authPort}/login`,
       {
-        username: req.body.username,
+        email: req.body.email,
+        password: req.body.password,
       },
       (json) => {
         setRefreshTokenCookie(res, json.refreshToken);
@@ -113,10 +131,8 @@ app.delete(
   expressMap((req, res) => {
     const refreshToken = getRefreshTokenCookie(req);
     return axiosDelete(
-      `http://localhost:${authPort}/logout-server/${refreshToken}`,
+      `http://localhost:${authPort}/logout/${refreshToken}`,
       () => {
-        // console.log("redirect");
-        // res.redirect("/");
         res.json({ success: true });
       }
     ).pipe(
@@ -145,29 +161,3 @@ provideBootstrap(app);
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });
-
-function httpGetWithAuth(url, req, res, options) {
-  const refreshToken = getRefreshTokenCookie(req);
-
-  const handleError = options.error
-    ? catchError((err) => {
-        return EMPTY;
-      })
-    : identity;
-  let accessToken = getAccessTokenCookie(req);
-
-  return defer(() => {
-    return axiosGet(
-      url,
-      {
-        headers: { authorization: `Bearer ${accessToken}` },
-      },
-      options.next
-    );
-  }).pipe(
-    autoRefreshToken(refreshToken, res, (token) => {
-      accessToken = token;
-    }),
-    handleError
-  );
-}

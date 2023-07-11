@@ -27,6 +27,8 @@
             class="form-control"
             id="floatingInput"
             placeholder="name@example.com"
+            ,
+            value="sapphinebz@gmail.com"
           />
           <label for="floatingInput">Email address</label>
         </div>
@@ -36,6 +38,7 @@
             class="form-control"
             id="floatingPassword"
             placeholder="Password"
+            value="boppin"
           />
           <label for="floatingPassword">Password</label>
         </div>
@@ -66,8 +69,12 @@
       fromEvent(loginBtn, "click")
         .pipe(
           switchMap(() => {
+            const email = floatingInput.value;
+            const password = floatingPassword.value;
+
             const body = {
-              username: "Thanadit",
+              email,
+              password,
             };
             return httpAuthPost("/login", body)
               .pipe(

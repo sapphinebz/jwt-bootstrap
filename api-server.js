@@ -1,16 +1,19 @@
 const express = require("express");
-const jwt = require("jsonwebtoken");
 const { expressMap } = require("./utils/expressjs");
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
-const STATUS_CODE = require("./utils/status-code.js");
+const { WebSocketServer } = require("ws");
+
 require("dotenv").config();
 const cors = require("cors");
 const app = express();
 const port = process.env.API_PORT;
-const { catchError, tap, map } = require("rxjs/operators");
 const { chunksGet } = require("./utils/https");
 const { cache } = require("./utils/rxjs");
+const { authenticateToken } = require("./utils/jwt");
+const { Subject, using } = require("rxjs");
+const { catchError, tap, map, mergeMap } = require("rxjs/operators");
+const { webSocketConnection, clientMessage } = require("./utils/websocket");
 
 app.use(express.json());
 app.use(
@@ -21,16 +24,16 @@ app.use(
   })
 );
 
-const users = [
-  {
-    username: "Thanadit",
-    title: "Senior Frontend Developer",
-  },
-  {
-    username: "Sapphinebz",
-    title: "Advance Frontend Developer",
-  },
-];
+// const users = [
+//   {
+//     username: "Thanadit",
+//     title: "Senior Frontend Developer",
+//   },
+//   {
+//     username: "Sapphinebz",
+//     title: "Advance Frontend Developer",
+//   },
+// ];
 
 const posts = [
   {
@@ -46,7 +49,7 @@ app.get("/", (req, res) => {
 });
 
 app.get("/userInfo", authenticateToken, (req, res) => {
-  res.json(users.filter((post) => post.username === req.user.name));
+  res.json([req.user]);
 });
 
 app.get("/posts", authenticateToken, (req, res) => {
@@ -101,16 +104,30 @@ app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });
 
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
-  if (token === null) {
-    return res.sendStatus(STATUS_CODE.UNAUTHORIZED);
-  }
+const configWebSocket = {
+  port: process.env.WS_PORT,
+  path: "/boppin",
+};
 
-  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
-    if (err) return res.sendStatus(STATUS_CODE.FORBIDDEN);
-    req.user = user;
-    next();
+app.get("/ws-config", authenticateToken, (req, res) => {
+  res.json(configWebSocket);
+});
+
+const ws = new WebSocketServer(configWebSocket);
+const serverMessage = new Subject();
+
+webSocketConnection(ws)
+  .pipe(
+    mergeMap(({ client }) => {
+      return using(
+        () =>
+          serverMessage.subscribe((msg) => {
+            client.send(msg);
+          }),
+        () => clientMessage(client)
+      );
+    })
+  )
+  .subscribe((clientToServer) => {
+    console.log(clientToServer);
   });
-}

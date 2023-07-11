@@ -27,35 +27,22 @@ app.use(cookieparser());
 // console.log("secret token: ", crypto);
 // console.log("secret refresh token", crypto);
 
-app.delete("/logout", doLogout());
-
 app.delete(
-  "/logout-server/:refreshToken",
+  "/logout/:refreshToken",
   doLogout((req) => {
     return req.params["refreshToken"];
   })
 );
 
-app.post("/refresh", doRefreshToken());
-
 app.post(
   "/login",
-  doLogin((res, accessToken, refreshToken) => {
-    setRefreshTokenCookie(res, refreshToken);
-
-    res.json({ accessToken });
-  })
-);
-
-app.post(
-  "/login-server",
   doLogin((res, accessToken, refreshToken) => {
     res.json({ accessToken, refreshToken });
   })
 );
 
 app.post(
-  "/refresh-server",
+  "/refresh",
   doRefreshToken((req) => {
     return req.body.refreshToken;
   })

@@ -3,7 +3,16 @@ const STATUS_CODE = require("../status-code.js");
 const defaultGetRefrehTokenFn = require("./get-refresh-token-cookie.js");
 
 let refreshTokens = [];
-const users = ["Thanadit", "Sowaluk"];
+const userEntitys = [
+  {
+    email: "sapphinebz@gmail.com",
+    password: "boppin",
+  },
+  {
+    email: "sowaluk@gmail.com",
+    password: "boppin",
+  },
+];
 
 function doRefreshToken(getRefreshToken = defaultGetRefrehTokenFn) {
   return (req, res) => {
@@ -13,19 +22,20 @@ function doRefreshToken(getRefreshToken = defaultGetRefrehTokenFn) {
       if (refreshToken == null) {
         return res.sendStatus(STATUS_CODE.UNAUTHORIZED);
       } else if (!refreshTokens.includes(refreshToken)) {
-        return res.sendStatus(STATUS_CODE.FORBIDDEN);
+        return res.sendStatus(STATUS_CODE.UNAUTHORIZED);
       }
 
       jwt.verify(
         refreshToken,
         process.env.REFRESH_TOKEN_SECRET,
-        (err, user) => {
+        (err, userEntity) => {
           if (err) {
             return res
               .status(STATUS_CODE.NOT_ACCEPTABLE)
               .json({ message: "Unauthorized" });
           }
-          const accessToken = generateAccessToken({ name: user.name });
+          const accessToken = generateAccessToken(userEntity);
+
           // attachRefreshToken(user, res);
           res.json({ accessToken });
         }
@@ -53,14 +63,24 @@ function doLogout(getRefreshToken = defaultGetRefrehTokenFn) {
   };
 }
 
-function generateAccessToken(user) {
-  return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "15s" });
+function getJwtPayload(userEntity) {
+  return { email: userEntity.email };
 }
 
-function generateRefreshToken(user) {
-  const token = jwt.sign(user, process.env.REFRESH_TOKEN_SECRET, {
-    expiresIn: "1d",
+function generateAccessToken(userEntity) {
+  return jwt.sign(getJwtPayload(userEntity), process.env.ACCESS_TOKEN_SECRET, {
+    expiresIn: "3s",
   });
+}
+
+function generateRefreshToken(userEntity) {
+  const token = jwt.sign(
+    getJwtPayload(userEntity),
+    process.env.REFRESH_TOKEN_SECRET,
+    {
+      expiresIn: "1d",
+    }
+  );
 
   refreshTokens.push(token);
 
@@ -69,11 +89,16 @@ function generateRefreshToken(user) {
 
 function doLogin(project) {
   return (req, res, next) => {
-    const username = req.body.username;
-    if (users.some((user) => user === username)) {
-      const user = { name: username };
-      const accessToken = generateAccessToken(user);
-      const refreshToken = generateRefreshToken(user, res);
+    const email = req.body.email;
+    const password = req.body.password;
+
+    const userEntity = userEntitys.find((entity) => {
+      return entity.email === email && entity.password === password;
+    });
+
+    if (userEntity) {
+      const accessToken = generateAccessToken(userEntity);
+      const refreshToken = generateRefreshToken(userEntity, res);
       project(res, accessToken, refreshToken);
       next();
     } else {
