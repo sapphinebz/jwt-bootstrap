@@ -18,6 +18,8 @@ const {
   setAccessTokenCookie,
 } = require("./utils/jwt");
 
+const { puppet, currentGoldPrice } = require("./utils/puppeteer");
+
 const { noAuthRedirectTo } = require("./utils/jwt");
 const STATUS_CODE = require("./utils/status-code");
 
@@ -161,3 +163,33 @@ provideBootstrap(app);
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });
+
+// currentGoldPrice().subscribe(console.log);
+// puppet(async (browser) => {
+//   const page = await browser.newPage();
+//   await page.goto(`https://www.goldtraders.or.th/`);
+//   // await page.screenshot({ path: "example.png" });
+//   // await page.pdf({ path: "example.pdf", format: "A4" });
+//   // const html = await page.content();
+//   // const title = await page.evaluate(() => document.title);
+//   // const text = await page.evaluate(() => document.body.innerText);
+
+//   const results = await page.evaluate(() => {
+//     const results = [];
+
+//     const trlist = document.querySelectorAll(
+//       "#DetailPlace_uc_goldprices1_GoldPricesUpdatePanel tbody tr"
+//     );
+
+//     if (trlist) {
+//       trlist.forEach((tr) => {
+//         if (tr.children.length === 3) {
+//           const tdList = tr.querySelectorAll("td");
+//           results.push(Array.from(tdList, (el) => el.textContent.trim()));
+//         }
+//       });
+//     }
+//     return results;
+//   });
+
+// }).subscribe();
